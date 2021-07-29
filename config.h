@@ -259,12 +259,6 @@ static MouseShortcut mshortcuts[] = {
   { XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"} },
 };
 
-static MouseShortcut maltshortcuts[] = {
-	/* mask                 button   function        argument       release */
-	{ XK_ANY_MOD,           Button2, clippaste,      {.i = 0},      1 },
-	{ XK_ANY_MOD,           Button4, ttysend,        {.s = "\031"} },
-	{ XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"} },
-};
 
 /* Internal keyboard shortcuts. */
 #define MODKEY Mod1Mask
