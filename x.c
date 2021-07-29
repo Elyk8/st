@@ -287,6 +287,7 @@ mouseaction(XEvent *e, uint release)
 	for (ms = mshortcuts; ms < mshortcuts + LEN(mshortcuts); ms++) {
 		if (ms->release == release &&
 				ms->button == e->xbutton.button &&
+				(!ms->altscrn || (ms->altscrn == (tisaltscr() ? 1 : -1))) &&
 				(match(ms->mod, state) ||  /* exact or forced */
 				 match(ms->mod, state & ~forcemousemod))) {
 			ms->func(&(ms->arg));
@@ -383,6 +384,7 @@ void
 bpress(XEvent *e)
 {
 	struct timespec now;
+	int snap;
 
 	if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forcemousemod)) {
 		mousereport(e);
@@ -398,35 +400,17 @@ bpress(XEvent *e)
 		 * snapping behaviour is exposed.
 		 */
 		clock_gettime(CLOCK_MONOTONIC, &now);
-		int const tripleClick = TIMEDIFF(now, xsel.tclick2) <= tripleclicktimeout,
-		doubleClick = TIMEDIFF(now, xsel.tclick1) <= doubleclicktimeout;
-		if ((mouseYank || mouseSelect) && (tripleClick || doubleClick)) {
-			if (!IS_SET(MODE_NORMAL)) normalMode();
-			historyOpToggle(1, 1);
-			tmoveto(evcol(e), evrow(e));
-			if (tripleClick) {
-				if (mouseYank) pressKeys("dVy", 3);
-				if (mouseSelect) pressKeys("dV", 2);
-			} else if (doubleClick) {
-				if (mouseYank) pressKeys("dyiW", 4);
-				if (mouseSelect) {
-					tmoveto(evcol(e), evrow(e));
-					pressKeys("viW", 3);
-				}
-			}
-			historyOpToggle(-1, 1);
+		if (TIMEDIFF(now, xsel.tclick2) <= tripleclicktimeout) {
+			snap = SNAP_LINE;
+		} else if (TIMEDIFF(now, xsel.tclick1) <= doubleclicktimeout) {
+			snap = SNAP_WORD;
 		} else {
-			if (!IS_SET(MODE_NORMAL)) selstart(evcol(e), evrow(e), 0);
-			else {
-				historyOpToggle(1, 1);
-				tmoveto(evcol(e), evrow(e));
-				pressKeys("v", 1);
-				historyOpToggle(-1, 1);
-			}
+			snap = 0;
 		}
 		xsel.tclick2 = xsel.tclick1;
 		xsel.tclick1 = now;
 
+		selstart(evcol(e), evrow(e), snap);
 	}
 }
 
@@ -633,7 +617,7 @@ brelease(XEvent *e)
 
 	if (mouseaction(e, 1))
 		return;
-	if (e->xbutton.button == Button1 && !IS_SET(MODE_NORMAL)) {
+	if (e->xbutton.button == Button1) {
 		mousesel(e, 1);
 	}
 }
@@ -713,10 +697,6 @@ xloadcolor(int i, const char *name, Color *ncolor)
 	return XftColorAllocName(xw.dpy, xw.vis, xw.cmap, name, ncolor);
 }
 
-void normalMode()
-{
-	historyModeToggle((win.mode ^=MODE_NORMAL) & MODE_NORMAL);
-}
 
 
 void
@@ -1214,10 +1194,8 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
 	for (i = 0, xp = winx, yp = winy + font->ascent; i < len; ++i)
 	{
 		/* Fetch rune and mode for current glyph. */
-		Glyph g = glyphs[i];
-		historyOverlay(x+i, y, &g);
-		rune = g.u;
-		mode = g.mode;
+		rune = glyphs[i].u;
+		mode = glyphs[i].mode;
 
 		/* Skip dummy wide-character spacing. */
 		if (mode & ATTR_WDUMMY)
@@ -1464,95 +1442,8 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, i
 
 	/* Render underline and strikethrough. */
 	if (base.mode & ATTR_UNDERLINE) {
-		// Underline Color
-		int wlw = 1; // Wave Line Width
-		int linecolor;
-		if ((base.ucolor[0] >= 0) &&
-			!(base.mode & ATTR_BLINK && win.mode & MODE_BLINK) &&
-			!(base.mode & ATTR_INVISIBLE)
-		) {
-			// Special color for underline
-			// Index
-			if (base.ucolor[1] < 0) {
-				linecolor = dc.col[base.ucolor[0]].pixel;
-			}
-			// RGB
-			else {
-				XColor lcolor;
-				lcolor.red = base.ucolor[0] * 257;
-				lcolor.green = base.ucolor[1] * 257;
-				lcolor.blue = base.ucolor[2] * 257;
-				lcolor.flags = DoRed | DoGreen | DoBlue;
-				XAllocColor(xw.dpy, xw.cmap, &lcolor);
-				linecolor = lcolor.pixel;
-			}
-		} else {
-			// Foreground color for underline
-			linecolor = fg->pixel;
-		}
-
-		XGCValues ugcv = {
-			.foreground = linecolor,
-			.line_width = wlw,
-			.line_style = LineSolid,
-			.cap_style = CapNotLast
-		};
-
-		GC ugc = XCreateGC(xw.dpy, XftDrawDrawable(xw.draw),
-			GCForeground | GCLineWidth | GCLineStyle | GCCapStyle,
-			&ugcv);
-
-		// Underline Style
-		if (base.ustyle != 3) {
-			//XftDrawRect(xw.draw, fg, winx, winy + dc.font.ascent + 1, width, 1);
-			XFillRectangle(xw.dpy, XftDrawDrawable(xw.draw), ugc, winx,
-				winy + dc.font.ascent + 1, width, wlw);
-		} else if (base.ustyle == 3) {
-			int ww = win.cw;//width;
-			int wh = dc.font.descent - wlw/2 - 1;//r.height/7;
-			int wx = winx;
-			int wy = winy + win.ch - dc.font.descent;
-
-			// Draw waves
-			int narcs = charlen * 2 + 1;
-			XArc *arcs = xmalloc(sizeof(XArc) * narcs);
-
-			int i = 0;
-			for (i = 0; i < charlen-1; i++) {
-				arcs[i*2] = (XArc) {
-					.x = wx + win.cw * i + ww / 4,
-					.y = wy,
-					.width = win.cw / 2,
-					.height = wh,
-					.angle1 = 0,
-					.angle2 = 180 * 64
-				};
-				arcs[i*2+1] = (XArc) {
-					.x = wx + win.cw * i + ww * 0.75,
-					.y = wy,
-					.width = win.cw/2,
-					.height = wh,
-					.angle1 = 180 * 64,
-					.angle2 = 180 * 64
-				};
-			}
-			// Last wave
-			arcs[i*2] = (XArc) {wx + ww * i + ww / 4, wy, ww / 2, wh,
-			0, 180 * 64 };
-			// Last wave tail
-			arcs[i*2+1] = (XArc) {wx + ww * i + ww * 0.75, wy, ceil(ww / 2.),
-			wh, 180 * 64, 90 * 64};
-			// First wave tail
-			i++;
-			arcs[i*2] = (XArc) {wx - ww/4 - 1, wy, ceil(ww / 2.), wh, 270 * 64,
-			90 * 64 };
-
-			XDrawArcs(xw.dpy, XftDrawDrawable(xw.draw), ugc, arcs, narcs);
-
-			free(arcs);
-		}
-
-		XFreeGC(xw.dpy, ugc);
+		XftDrawRect(xw.draw, fg, winx, winy + dc.font.ascent + 1,
+				width, 1);
 	}
 
 	if (base.mode & ATTR_STRUCK) {
@@ -1730,7 +1621,6 @@ xdrawline(Line line, int x1, int y1, int x2)
 		i = ox = 0;
 		for (x = x1; x < x2 && i < numspecs; x++) {
 			new = line[x];
-			historyOverlay(x, y1, &new);
 			if (new.mode == ATTR_WDUMMY)
 				continue;
 			if (selected(x, y1))
@@ -1932,11 +1822,6 @@ kpress(XEvent *ev)
 		len = XmbLookupString(xw.ime.xic, e, buf, sizeof buf, &ksym, &status);
 	else
 		len = XLookupString(e, buf, sizeof buf, &ksym, NULL);
-	if (IS_SET(MODE_NORMAL)) {
-		if (kPressHist(buf, len, match(ControlMask, e->state), &ksym)
-		                                      == finish) normalMode();
-		return;
-	}
 
 	/* 1. shortcuts */
 	for (bp = shortcuts; bp < shortcuts + LEN(shortcuts); bp++) {

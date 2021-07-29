@@ -14,7 +14,6 @@
 #define MAX(a, b)		((a) < (b) ? (b) : (a))
 #define LEN(a)			(sizeof(a) / sizeof(a)[0])
 #define BETWEEN(x, a, b)	((a) <= (x) && (x) <= (b))
-#define OUT(x, a, b)		((a) <= (x) || (x) <= (b))
 #define DIVCEIL(n, d)		(((n) + ((d) - 1)) / (d))
 #define DEFAULT(a, b)		(a) = (a) ? (a) : (b)
 #define LIMIT(x, a, b)		(x) = (x) < (a) ? (a) : (x) > (b) ? (b) : (x)
@@ -45,7 +44,6 @@ enum glyph_attribute {
 	ATTR_BOXDRAW    = 1 << 11,
 	ATTR_LIGA       = 1 << 12,
 	ATTR_BOLD_FAINT = ATTR_BOLD | ATTR_FAINT,
-	ATTR_DIRTYUNDERLINE = 1 << 15,
 };
 
 
@@ -88,8 +86,6 @@ typedef struct {
 	ushort mode;      /* attribute flags */
 	uint32_t fg;      /* foreground  */
 	uint32_t bg;      /* background  */
-	int ustyle;	      /* underline style */
-	int ucolor[3];    /* underline color */
 } Glyph;
 
 typedef Glyph *Line;
@@ -105,6 +101,7 @@ typedef struct {
 typedef struct {
 	int row;      /* nb row */
 	int col;      /* nb col */
+	int maxcol;
 	Line *line;   /* screen */
 	Line *alt;    /* alternate screen */
 	Line hist[HISTSIZE]; /* history buffer */
@@ -188,6 +185,7 @@ typedef struct {
 	void (*func)(const Arg *);
 	const Arg arg;
 	uint  release;
+	int  altscrn;  /* 0: don't care, -1: not alt screen, 1: alt screen */
 } MouseShortcut;
 
 typedef struct {
@@ -237,7 +235,6 @@ void toggleprinter(const Arg *);
 int tattrset(int);
 void tnew(int, int);
 void tresize(int, int);
-void tmoveto(int x, int y);
 void tsetdirtattr(int);
 void ttyhangup(void);
 int ttynew(const char *, char *, const char *, char **);
