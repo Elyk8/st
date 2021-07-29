@@ -8,7 +8,7 @@
 static char *font = "monospace:size=11:antialias=true:autohint=true";
 /* Spare fonts */
 static char *font2[] = {
-  "Braille:pixelsize=18"
+  "Twemoji:pixelsize=18:antialias=true:autohint=true"
 };
 static int borderpx = 2;
 

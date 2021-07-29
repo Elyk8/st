@@ -39,6 +39,7 @@ static void zoomreset(const Arg *);
 
 #include "patch/st_include.h"
 #include "patch/x_include.h"
+#include "patch/changealpha.h"
 
 /* config.h for applying patches and the configuration. */
 #include "config.h"
