@@ -5,11 +5,12 @@
  *
  * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
  */
-static char *font = "Liberation Mono:pixelsize=12:antialias=true:autohint=true";
+static char *font = "JetBrainsMono Nerd Font:size=12:antialias=true:autohint=true";
 /* Spare fonts */
 static char *font2[] = {
 /*	"Inconsolata for Powerline:pixelsize=12:antialias=true:autohint=true", */
 /*	"Hack Nerd Font Mono:pixelsize=11:antialias=true:autohint=true", */
+	"Twemoji:pixelsize=11:antialias=true:autohint=true", 
 };
 
 static int borderpx = 2;
@@ -175,11 +176,9 @@ static unsigned int cols = 80;
 static unsigned int rows = 24;
 
 /*
- * Default colour and shape of the mouse cursor
+ * Default shape of the mouse cursor
  */
-static unsigned int mouseshape = XC_xterm;
-static unsigned int mousefg = 7;
-static unsigned int mousebg = 0;
+static char* mouseshape = "xterm";
 
 /*
  * Color used to display font attributes when fontconfig selected a font which
@@ -271,6 +270,7 @@ static Shortcut shortcuts[] = {
 	{ TERMMOD,              XK_Num_Lock,    numlock,         {.i =  0} },
 	{ MODKEY,               XK_l,           copyurl,         {.i =  0} },
 	{ TERMMOD,              XK_U,           externalpipe,    { .v = openurlcmd } },
+	{ TERMMOD,              XK_I,           iso14755,        {.i =  0} },
   { MODKEY,               XK_s,           changealpha,    {.f = -0.05} },
   { MODKEY,               XK_a,           changealpha,    {.f = +0.05} },
 };

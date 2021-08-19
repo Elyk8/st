@@ -16,7 +16,7 @@ PKG_CONFIG = pkg-config
 XRENDER = -lXrender
 
 # Uncomment this for the themed cursor patch / THEMED_CURSOR_PATCH
-#XCURSOR = -lXcursor
+XCURSOR = -lXcursor
 
 # Uncomment the lines below for the ligatures patch / LIGATURES_PATCH
 LIGATURES_C = hb.c

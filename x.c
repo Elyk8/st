@@ -21,6 +21,7 @@ char *argv0;
 #include "win.h"
 #include "hb.h"
 
+#include <X11/Xcursor/Xcursor.h>
 
 /* X modifiers */
 #define XK_ANY_MOD    UINT_MAX
@@ -42,6 +43,7 @@ static void zoomreset(const Arg *);
 
 /* config.h for applying patches and the configuration. */
 #include "config.h"
+
 
 /* XEMBED messages */
 #define XEMBED_FOCUS_IN  4
@@ -134,6 +136,7 @@ DC dc;
 XWindow xw;
 XSelection xsel;
 TermWindow win;
+
 
 /* Font Ring Cache */
 enum {
@@ -662,6 +665,11 @@ xresize(int col, int row)
 	win.tw = col * win.cw;
 	win.th = row * win.ch;
 
+	XFreePixmap(xw.dpy, xw.buf);
+	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
+			xw.depth
+	);
+	XftDrawChange(xw.draw, xw.buf);
 	xclear(0, 0, win.w, win.h);
 
 	/* resize to new width */
@@ -1110,7 +1118,7 @@ xinit(int cols, int rows)
 	memset(&gcvalues, 0, sizeof(gcvalues));
 	gcvalues.graphics_exposures = False;
 
-	xw.buf = xw.win;
+	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h, xw.depth);
 	dc.gc = XCreateGC(xw.dpy, xw.buf, GCGraphicsExposures, &gcvalues);
 	XSetForeground(xw.dpy, dc.gc, dc.col[defaultbg].pixel);
 	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
@@ -1128,22 +1136,10 @@ xinit(int cols, int rows)
 	}
 
 	/* white cursor, black outline */
-	cursor = XCreateFontCursor(xw.dpy, mouseshape);
+	cursor = XcursorLibraryLoadCursor(xw.dpy, mouseshape);
 	XDefineCursor(xw.dpy, xw.win, cursor);
 
-	if (XParseColor(xw.dpy, xw.cmap, colorname[mousefg], &xmousefg) == 0) {
-		xmousefg.red   = 0xffff;
-		xmousefg.green = 0xffff;
-		xmousefg.blue  = 0xffff;
-	}
 
-	if (XParseColor(xw.dpy, xw.cmap, colorname[mousebg], &xmousebg) == 0) {
-		xmousebg.red   = 0x0000;
-		xmousebg.green = 0x0000;
-		xmousebg.blue  = 0x0000;
-	}
-
-	XRecolorCursor(xw.dpy, cursor, &xmousefg, &xmousebg);
 
 	xw.xembed = XInternAtom(xw.dpy, "_XEMBED", False);
 	xw.wmdeletewin = XInternAtom(xw.dpy, "WM_DELETE_WINDOW", False);
@@ -1394,14 +1390,9 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, i
 	}
 
 	if (base.mode & ATTR_REVERSE) {
-		if (bg == fg) {
-			bg = &dc.col[defaultfg];
-			fg = &dc.col[defaultbg];
-		} else {
-			temp = fg;
-			fg = bg;
-			bg = temp;
-		}
+		temp = fg;
+		fg = bg;
+		bg = temp;
 	}
 
 	if (base.mode & ATTR_BLINK && win.mode & MODE_BLINK)
@@ -1469,7 +1460,6 @@ void
 xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og, Line line, int len)
 {
 	Color drawcol;
-	XRenderColor colbg;
 
 	/* remove the old cursor */
 	if (selected(ox, oy))
@@ -1501,20 +1491,12 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og, Line line, int le
 			g.fg = defaultfg;
 			g.bg = defaultrcs;
 		}
-		else if (!(og.mode & ATTR_REVERSE)) {
-			unsigned int tmpcol = g.bg;
-			g.bg = g.fg;
-			g.fg = tmpcol;
+		else {
+			g.fg = defaultbg;
+			g.bg = defaultcs;
 		}
 
-		if (IS_TRUECOL(g.bg)) {
-			colbg.alpha = 0xffff;
-			colbg.red = TRUERED(g.bg);
-			colbg.green = TRUEGREEN(g.bg);
-			colbg.blue = TRUEBLUE(g.bg);
-			XftColorAllocValue(xw.dpy, xw.vis, xw.cmap, &colbg, &drawcol);
-		} else
-			drawcol = dc.col[g.bg];
+		drawcol = dc.col[g.bg];
 	}
 
 	/* draw the new one */
@@ -1648,6 +1630,8 @@ void
 xfinishdraw(void)
 {
 
+	XCopyArea(xw.dpy, xw.buf, xw.win, dc.gc, 0, 0, win.w,
+			win.h, 0, 0);
 	XSetForeground(xw.dpy, dc.gc,
 			dc.col[IS_SET(MODE_REVERSE)?
 				defaultfg : defaultbg].pixel);
