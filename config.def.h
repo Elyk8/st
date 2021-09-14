@@ -269,6 +269,7 @@ static Shortcut shortcuts[] = {
 	{ ShiftMask,            XK_Insert,      clippaste,       {.i =  0} },
 	{ TERMMOD,              XK_Num_Lock,    numlock,         {.i =  0} },
 	{ MODKEY,               XK_l,           copyurl,         {.i =  0} },
+	{ TERMMOD,              XK_Return,      newterm,         {.i =  0} },
 	{ TERMMOD,              XK_U,           externalpipe,    { .v = openurlcmd } },
 	{ TERMMOD,              XK_I,           iso14755,        {.i =  0} },
   { MODKEY,               XK_s,           changealpha,    {.f = -0.05} },
@@ -544,4 +545,5 @@ static char ascii_printable[] =
 	" !\"#$%&'()*+,-./0123456789:;<=>?"
 	"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
 	"`abcdefghijklmnopqrstuvwxyz{|}~";
+
 

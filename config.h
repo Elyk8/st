@@ -8,7 +8,7 @@
 static char *font = "monospace:size=11:antialias=true:autohint=true";
 /* Spare fonts */
 static char *font2[] = {
-  "Twemoji:pixelsize=18:antialias=true:autohint=true"
+  "NotoColorEmoji:pixelsize=18:antialias=true:autohint=true"
 };
 static int borderpx = 2;
 
@@ -287,6 +287,7 @@ static Shortcut shortcuts[] = {
   { TERMMOD,              XK_J,           zoom,           {.f = -1} },
   { TERMMOD,              XK_U,           zoom,           {.f = +2} },
   { TERMMOD,              XK_D,           zoom,           {.f = -2} },
+  { MODKEY,               XK_Return,      newterm,         {.i =  0} },
   { MODKEY,               XK_l,           externalpipe,   {.v = openurlcmd } },
   { MODKEY,               XK_y,           externalpipe,   {.v = copyurlcmd } },
   { MODKEY,               XK_o,           externalpipe,   {.v = copyoutput } },
