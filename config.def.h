@@ -13,7 +13,9 @@ static char *font2[] = {
 	"Twemoji:pixelsize=11:antialias=true:autohint=true", 
 };
 
-static int borderpx = 2;
+/* borderperc: percentage of cell width to use as a border
+ *             0 = no border, 100 = border width is same as cell width */
+int borderperc = 20;
 
 
 /*
@@ -31,7 +33,7 @@ char *scroll = NULL;
 char *stty_args = "stty raw pass8 nl -echo -iexten -cstopb 38400";
 
 /* identification sequence returned in DA and DECID */
-char *vtiden = "\033[?6c";
+char *vtiden = "\033[?12;4c";
 
 /* Kerning / character bounding-box multipliers */
 static float cwscale = 1.0;
@@ -64,6 +66,11 @@ int allowwindowops = 0;
 static double minlatency = 8;
 static double maxlatency = 33;
 
+/*
+ * Synchronized-Update timeout in ms
+ * https://gitlab.com/gnachman/iterm2/-/wikis/synchronized-updates-spec
+ */
+static uint su_timeout = 200;
 
 /*
  * blinking timeout (set to 0 to disable blinking) for the terminal blinking
@@ -217,7 +224,7 @@ ResourcePref resources[] = {
 		{ "blinktimeout", INTEGER, &blinktimeout },
 		{ "bellvolume",   INTEGER, &bellvolume },
 		{ "tabspaces",    INTEGER, &tabspaces },
-		{ "borderpx",     INTEGER, &borderpx },
+		{ "borderperc",   INTEGER, &borderperc },
 		{ "cwscale",      FLOAT,   &cwscale },
 		{ "chscale",      FLOAT,   &chscale },
 		{ "alpha",        FLOAT,   &alpha },
@@ -269,9 +276,9 @@ static Shortcut shortcuts[] = {
 	{ ShiftMask,            XK_Insert,      clippaste,       {.i =  0} },
 	{ TERMMOD,              XK_Num_Lock,    numlock,         {.i =  0} },
 	{ MODKEY,               XK_l,           copyurl,         {.i =  0} },
+	{ MODKEY,               XK_o,           opencopied,      {.v = "xdg-open"} },
 	{ TERMMOD,              XK_Return,      newterm,         {.i =  0} },
 	{ TERMMOD,              XK_U,           externalpipe,    { .v = openurlcmd } },
-	{ TERMMOD,              XK_I,           iso14755,        {.i =  0} },
   { MODKEY,               XK_s,           changealpha,    {.f = -0.05} },
   { MODKEY,               XK_a,           changealpha,    {.f = +0.05} },
 };

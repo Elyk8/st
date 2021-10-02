@@ -15,6 +15,7 @@ kscrolldown(const Arg* a)
 		tfulldirt();
 	}
 
+	scroll_images(-1*n);
 }
 
 void
@@ -30,4 +31,5 @@ kscrollup(const Arg* a)
 		tfulldirt();
 	}
 
+	scroll_images(n);
 }

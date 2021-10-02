@@ -174,8 +174,7 @@ static char *opt_dir   = NULL;
 
 
 static int oldbutton = 3; /* button event on startup: 3 = release */
-static Cursor cursor;
-static XColor xmousefg, xmousebg;
+int borderpx;
 
 #include "patch/x_include.c"
 
@@ -257,7 +256,7 @@ zoomreset(const Arg *arg)
 int
 evcol(XEvent *e)
 {
-	int x = e->xbutton.x - borderpx;
+	int x = e->xbutton.x - win.hborderpx;
 	LIMIT(x, 0, win.tw - 1);
 	return x / win.cw;
 }
@@ -265,7 +264,7 @@ evcol(XEvent *e)
 int
 evrow(XEvent *e)
 {
-	int y = e->xbutton.y - borderpx;
+	int y = e->xbutton.y - win.vborderpx;
 	LIMIT(y, 0, win.th - 1);
 	return y / win.ch;
 }
@@ -654,6 +653,8 @@ cresize(int width, int height)
 	col = MAX(1, col);
 	row = MAX(1, row);
 
+	win.hborderpx = (win.w - col * win.cw) / 2;
+	win.vborderpx = (win.h - row * win.ch) / 2;
 
 	tresize(col, row);
 	xresize(col, row);
@@ -795,8 +796,8 @@ xhints(void)
 	sizeh->flags = PSize | PResizeInc | PBaseSize | PMinSize;
 	sizeh->height = win.h;
 	sizeh->width = win.w;
-	sizeh->height_inc = win.ch;
-	sizeh->width_inc = win.cw;
+	sizeh->height_inc = 1;
+	sizeh->width_inc = 1;
 	sizeh->base_height = 2 * borderpx;
 	sizeh->base_width = 2 * borderpx;
 	sizeh->min_height = win.ch + 2 * borderpx;
@@ -1012,6 +1013,7 @@ xloadfonts(const char *fontstr, double fontsize)
 	win.cw = ceilf(dc.font.width * cwscale);
 	win.ch = ceilf(dc.font.height * chscale);
 
+	borderpx = (int) ceilf(((float)borderperc / 100) * win.cw);
 	FcPatternDel(pattern, FC_SLANT);
 	FcPatternAddInteger(pattern, FC_SLANT, FC_SLANT_ITALIC);
 	if (xloadfont(&dc.ifont, pattern))
@@ -1059,8 +1061,10 @@ void
 xinit(int cols, int rows)
 {
 	XGCValues gcvalues;
+	Cursor cursor;
 	Window parent;
 	pid_t thispid = getpid();
+	XColor xmousefg, xmousebg;
 	XWindowAttributes attr;
 	XVisualInfo vis;
 
@@ -1094,8 +1098,8 @@ xinit(int cols, int rows)
 	xloadcols();
 
 	/* adjust fixed window geometry */
-	win.w = 2 * borderpx + cols * win.cw;
-	win.h = 2 * borderpx + rows * win.ch;
+	win.w = 2 * win.hborderpx + cols * win.cw;
+	win.h = 2 * win.vborderpx + rows * win.ch;
 	if (xw.gm & XNegative)
 		xw.l += DisplayWidth(xw.dpy, xw.scr) - win.w - 2;
 	if (xw.gm & YNegative)
@@ -1176,7 +1180,7 @@ xinit(int cols, int rows)
 int
 xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x, int y)
 {
-	float winx = borderpx + x * win.cw, winy = borderpx + y * win.ch, xp, yp;
+	float winx = win.hborderpx + x * win.cw, winy = win.vborderpx + y * win.ch, xp, yp;
 	ushort mode, prevmode = USHRT_MAX;
 	Font *font = &dc.font;
 	int frcflags = FRC_NORMAL;
@@ -1319,7 +1323,7 @@ void
 xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, int y, int dmode)
 {
 	int charlen = len * ((base.mode & ATTR_WIDE) ? 2 : 1);
-	int winx = borderpx + x * win.cw, winy = borderpx + y * win.ch;
+	int winx = win.hborderpx + x * win.cw, winy = win.vborderpx + y * win.ch;
 	int width = charlen * win.cw;
 	Color *fg, *bg, *temp, revfg, revbg, truefg, truebg;
 	XRenderColor colfg, colbg;
@@ -1392,9 +1396,14 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, i
 	}
 
 	if (base.mode & ATTR_REVERSE) {
-		temp = fg;
-		fg = bg;
-		bg = temp;
+		if (bg == fg) {
+			bg = &dc.col[defaultfg];
+			fg = &dc.col[defaultbg];
+		} else {
+			temp = fg;
+			fg = bg;
+			bg = temp;
+		}
 	}
 
 	if (base.mode & ATTR_BLINK && win.mode & MODE_BLINK)
@@ -1408,17 +1417,17 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, i
 	if (dmode & DRAW_BG) {
 	/* Intelligent cleaning up of the borders. */
 	if (x == 0) {
-		xclear(0, (y == 0)? 0 : winy, borderpx,
+		xclear(0, (y == 0)? 0 : winy, win.vborderpx,
 			winy + win.ch +
-			((winy + win.ch >= borderpx + win.th)? win.h : 0));
+			((winy + win.ch >= win.vborderpx + win.th)? win.h : 0));
 	}
-	if (winx + width >= borderpx + win.tw) {
+	if (winx + width >= win.hborderpx + win.tw) {
 		xclear(winx + width, (y == 0)? 0 : winy, win.w,
-			((winy + win.ch >= borderpx + win.th)? win.h : (winy + win.ch)));
+			((winy + win.ch >= win.vborderpx + win.th)? win.h : (winy + win.ch)));
 	}
 	if (y == 0)
-		xclear(winx, 0, winx + width, borderpx);
-	if (winy + win.ch >= borderpx + win.th)
+		xclear(winx, 0, winx + width, win.hborderpx);
+	if (winy + win.ch >= win.vborderpx + win.th)
 		xclear(winx, winy + win.ch, winx + width, win.h);
 
 	/* Clean up the region we want to draw to. */
@@ -1462,6 +1471,7 @@ void
 xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og, Line line, int len)
 {
 	Color drawcol;
+	XRenderColor colbg;
 
 	/* remove the old cursor */
 	if (selected(ox, oy))
@@ -1493,12 +1503,20 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og, Line line, int le
 			g.fg = defaultfg;
 			g.bg = defaultrcs;
 		}
-		else {
-			g.fg = defaultbg;
-			g.bg = defaultcs;
+		else if (!(og.mode & ATTR_REVERSE)) {
+			unsigned int tmpcol = g.bg;
+			g.bg = g.fg;
+			g.fg = tmpcol;
 		}
 
-		drawcol = dc.col[g.bg];
+		if (IS_TRUECOL(g.bg)) {
+			colbg.alpha = 0xffff;
+			colbg.red = TRUERED(g.bg);
+			colbg.green = TRUEGREEN(g.bg);
+			colbg.blue = TRUEBLUE(g.bg);
+			XftColorAllocValue(xw.dpy, xw.vis, xw.cmap, &colbg, &drawcol);
+		} else
+			drawcol = dc.col[g.bg];
 	}
 
 	/* draw the new one */
@@ -1515,35 +1533,35 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og, Line line, int le
 		case 3: /* Blinking underline */
 		case 4: /* Steady underline */
 			XftDrawRect(xw.draw, &drawcol,
-					borderpx + cx * win.cw,
-					borderpx + (cy + 1) * win.ch - \
+					win.hborderpx + cx * win.cw,
+					win.vborderpx + (cy + 1) * win.ch - \
 						cursorthickness,
 					win.cw, cursorthickness);
 			break;
 		case 5: /* Blinking bar */
 		case 6: /* Steady bar */
 			XftDrawRect(xw.draw, &drawcol,
-					borderpx + cx * win.cw,
-					borderpx + cy * win.ch,
+					win.hborderpx + cx * win.cw,
+					win.vborderpx + cy * win.ch,
 					cursorthickness, win.ch);
 			break;
 		}
 	} else {
 		XftDrawRect(xw.draw, &drawcol,
-				borderpx + cx * win.cw,
-				borderpx + cy * win.ch,
+				win.hborderpx + cx * win.cw,
+				win.vborderpx + cy * win.ch,
 				win.cw - 1, 1);
 		XftDrawRect(xw.draw, &drawcol,
-				borderpx + cx * win.cw,
-				borderpx + cy * win.ch,
+				win.hborderpx + cx * win.cw,
+				win.vborderpx + cy * win.ch,
 				1, win.ch - 1);
 		XftDrawRect(xw.draw, &drawcol,
-				borderpx + (cx + 1) * win.cw - 1,
-				borderpx + cy * win.ch,
+				win.hborderpx + (cx + 1) * win.cw - 1,
+				win.vborderpx + cy * win.ch,
 				1, win.ch - 1);
 		XftDrawRect(xw.draw, &drawcol,
-				borderpx + cx * win.cw,
-				borderpx + (cy + 1) * win.ch - 1,
+				win.hborderpx + cx * win.cw,
+				win.vborderpx + (cy + 1) * win.ch - 1,
 				win.cw, 1);
 	}
 }
@@ -1633,6 +1651,13 @@ xdrawline(Line line, int x1, int y1, int x2)
 void
 xfinishdraw(void)
 {
+	ImageList *im;
+	int x, y;
+	int n = 0;
+	int nlimit = 256;
+	XRectangle *rects = NULL;
+	XGCValues gcvalues;
+	GC gc;
 
 	XCopyArea(xw.dpy, xw.buf, xw.win, dc.gc, 0, 0, win.w,
 			win.h, 0, 0);
@@ -1640,6 +1665,58 @@ xfinishdraw(void)
 			dc.col[IS_SET(MODE_REVERSE)?
 				defaultfg : defaultbg].pixel);
 
+	for (im = term.images; im; im = im->next) {
+		if (term.images == NULL) {
+			/* last image was deleted, bail out */
+			break;
+		}
+
+		if (im->should_delete) {
+			delete_image(im);
+
+			/* prevent the next iteration from accessing an invalid image pointer */
+			im = term.images;
+			if (im == NULL) {
+				break;
+			} else {
+				continue;
+			}
+		}
+
+		if (!im->pixmap) {
+			im->pixmap = (void *)XCreatePixmap(xw.dpy, xw.win, im->width, im->height,
+				xw.depth
+			);
+			XImage ximage = {
+				.format = ZPixmap,
+				.data = (char *)im->pixels,
+				.width = im->width,
+				.height = im->height,
+				.xoffset = 0,
+				.byte_order = LSBFirst,
+				.bitmap_bit_order = MSBFirst,
+				.bits_per_pixel = 32,
+				.bytes_per_line = im->width * 4,
+				.bitmap_unit = 32,
+				.bitmap_pad = 32,
+				.depth = xw.depth
+			};
+			XPutImage(xw.dpy, (Drawable)im->pixmap, dc.gc, &ximage, 0, 0, 0, 0, im->width, im->height);
+			free(im->pixels);
+			im->pixels = NULL;
+		}
+
+		n = 0;
+		memset(&gcvalues, 0, sizeof(gcvalues));
+		gc = XCreateGC(xw.dpy, xw.win, 0, &gcvalues);
+
+		XCopyArea(xw.dpy, (Drawable)im->pixmap, xw.buf, gc, 0, 0, im->width, im->height, borderpx + im->x * win.cw, borderpx + im->y * win.ch);
+		XFreeGC(xw.dpy, gc);
+
+	}
+
+	free(rects);
+	drawregion(0, 0, term.col, term.row);
 }
 
 void
@@ -1686,13 +1763,6 @@ xsetmode(int set, unsigned int flags)
 {
 	int mode = win.mode;
 	MODBIT(win.mode, set, flags);
-	if ((flags & MODE_MOUSE)
-	) {
-		if (win.mode & MODE_MOUSE)
-			XUndefineCursor(xw.dpy, xw.win);
-		else
-			XDefineCursor(xw.dpy, xw.win, cursor);
-	}
 	if ((win.mode & MODE_REVERSE) != (mode & MODE_REVERSE))
 		redraw();
 }
@@ -1911,7 +1981,7 @@ run(void)
 		FD_SET(ttyfd, &rfd);
 		FD_SET(xfd, &rfd);
 
-		if (XPending(xw.dpy))
+		if (XPending(xw.dpy) || ttyread_pending())
 			timeout = 0;  /* existing events might not set xfd */
 
 		seltv.tv_sec = timeout / 1E3;
@@ -1925,7 +1995,8 @@ run(void)
 		}
 		clock_gettime(CLOCK_MONOTONIC, &now);
 
-		if (FD_ISSET(ttyfd, &rfd))
+		int ttyin = FD_ISSET(ttyfd, &rfd) || ttyread_pending();
+		if (ttyin)
 			ttyread();
 
 		xev = 0;
@@ -1949,7 +2020,7 @@ run(void)
 		 * maximum latency intervals during `cat huge.txt`, and perfect
 		 * sync with periodic updates from animations/key-repeats/etc.
 		 */
-		if (FD_ISSET(ttyfd, &rfd) || xev)
+		if (ttyin || xev)
 		{
 			if (!drawing) {
 				trigger = now;
@@ -1961,6 +2032,17 @@ run(void)
 				continue;  /* we have time, try to find idle */
 		}
 
+		if (tinsync(su_timeout)) {
+			/*
+			 * on synchronized-update draw-suspension: don't reset
+			 * drawing so that we draw ASAP once we can (just after
+			 * ESU). it won't be too soon because we already can
+			 * draw now but we skip. we set timeout > 0 to draw on
+			 * SU-timeout even without new content.
+			 */
+			timeout = minlatency;
+			continue;
+		}
 
 		/* idle detected or maxlatency exhausted -> draw */
 		timeout = -1;
@@ -1977,6 +2059,10 @@ run(void)
 			}
 		}
 
+		/* Refresh before drawing */
+		cresize(0, 0);
+		redraw();
+		xhints();
 
 		draw();
 		XFlush(xw.dpy);

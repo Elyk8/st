@@ -5,12 +5,12 @@
  *
  * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
  */
-static char *font = "monospace:size=11:antialias=true:autohint=true";
+static char *font = "JetBrains Mono Nerd Font:size=11:antialias=true:autohint=true";
 /* Spare fonts */
 static char *font2[] = {
   "NotoColorEmoji:pixelsize=18:antialias=true:autohint=true"
 };
-static int borderpx = 2;
+int borderperc = 20;
 
 
 /*
@@ -44,6 +44,12 @@ wchar_t *worddelimiters = L" ";
 /* selection timeouts (in milliseconds) */
 static unsigned int doubleclicktimeout = 300;
 static unsigned int tripleclicktimeout = 600;
+
+/*
+ * Synchronized-Update timeout in ms
+ * https://gitlab.com/gnachman/iterm2/-/wikis/synchronized-updates-spec
+ */
+static uint su_timeout = 200;
 
 /* alt screens */
 int allowaltscreen = 1;
@@ -215,7 +221,7 @@ ResourcePref resources[] = {
 		{ "blinktimeout", INTEGER, &blinktimeout },
 		{ "bellvolume",   INTEGER, &bellvolume },
 		{ "tabspaces",    INTEGER, &tabspaces },
-		{ "borderpx",     INTEGER, &borderpx },
+		{ "borderperc",   INTEGER, &borderperc },
 		{ "cwscale",      FLOAT,   &cwscale },
 		{ "chscale",      FLOAT,   &chscale },
 		{ "alpha",        FLOAT,   &alpha },
