@@ -13,9 +13,7 @@ static char *font2[] = {
 	"Twemoji:pixelsize=11:antialias=true:autohint=true", 
 };
 
-/* borderperc: percentage of cell width to use as a border
- *             0 = no border, 100 = border width is same as cell width */
-int borderperc = 20;
+static int borderpx = 2;
 
 
 /*
@@ -33,7 +31,7 @@ char *scroll = NULL;
 char *stty_args = "stty raw pass8 nl -echo -iexten -cstopb 38400";
 
 /* identification sequence returned in DA and DECID */
-char *vtiden = "\033[?12;4c";
+char *vtiden = "\033[?6c";
 
 /* Kerning / character bounding-box multipliers */
 static float cwscale = 1.0;
@@ -66,11 +64,6 @@ int allowwindowops = 0;
 static double minlatency = 8;
 static double maxlatency = 33;
 
-/*
- * Synchronized-Update timeout in ms
- * https://gitlab.com/gnachman/iterm2/-/wikis/synchronized-updates-spec
- */
-static uint su_timeout = 200;
 
 /*
  * blinking timeout (set to 0 to disable blinking) for the terminal blinking
@@ -224,7 +217,7 @@ ResourcePref resources[] = {
 		{ "blinktimeout", INTEGER, &blinktimeout },
 		{ "bellvolume",   INTEGER, &bellvolume },
 		{ "tabspaces",    INTEGER, &tabspaces },
-		{ "borderperc",   INTEGER, &borderperc },
+		{ "borderpx",     INTEGER, &borderpx },
 		{ "cwscale",      FLOAT,   &cwscale },
 		{ "chscale",      FLOAT,   &chscale },
 		{ "alpha",        FLOAT,   &alpha },

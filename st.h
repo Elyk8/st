@@ -43,20 +43,9 @@ enum glyph_attribute {
 	ATTR_WDUMMY     = 1 << 10,
 	ATTR_BOXDRAW    = 1 << 11,
 	ATTR_LIGA       = 1 << 12,
-	ATTR_SIXEL      = 1 << 13,
 	ATTR_BOLD_FAINT = ATTR_BOLD | ATTR_FAINT,
 };
 
-typedef struct _ImageList {
-	struct _ImageList *next, *prev;
-	unsigned char *pixels;
-	void *pixmap;
-	int width;
-	int height;
-	int x;
-	int y;
-	int should_delete;
-} ImageList;
 
 enum drawing_mode {
 	DRAW_NONE = 0,
@@ -130,8 +119,6 @@ typedef struct {
 	int charset;  /* current charset */
 	int icharset; /* selected charset for sequence */
 	int *tabs;
-	ImageList *images;     /* sixel images */
-	ImageList *images_alt; /* sixel images for alternate screen */
 	Rune lastc;   /* last printed char outside of sequence, 0 if control */
 } Term;
 
@@ -147,7 +134,6 @@ typedef union {
 typedef struct {
 	int tw, th; /* tty width and height */
 	int w, h; /* window width and height */
-	int hborderpx, vborderpx;
 	int ch; /* char height */
 	int cw; /* char width  */
 	int mode; /* window state/mode flags */
